@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  notejam:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - nodejam.db:/app/db
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  nodejam.db:
