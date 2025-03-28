@@ -1,104 +1,162 @@
-var sqlite3 = require('sqlite3').verbose();
-var async = require('async');
+const { Pool } = require('pg');
+const async = require('async');
 
-var settings = require('./settings');
-var db = new sqlite3.Database(settings.db);
+const settings = require('./settings');
+const pool = new Pool({
+  host: "localhost",
+  port: "5432",
+  database: "db",
+  user: "postgres",
+  password: "5432 || 8000",
+});
 
-var functions = {
-  createTables: function(next) {
+const functions = {
+  createTables: function (next) {
     async.series({
-      createUsers: function(callback) {
-        db.run("CREATE TABLE IF NOT EXISTS users (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-            "email VARCHAR(75) NOT NULL," +
-            "password VARCHAR(128) NOT NULL);", [],
-            function() { callback(null); });
+      createUsers: function (callback) {
+        pool.query(
+          `CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(75) NOT NULL,
+            password VARCHAR(128) NOT NULL
+          );`,
+          [],
+          function (err) {
+            if (err) throw err;
+            callback(null);
+          }
+        );
       },
-      createPads: function(callback) {
-        db.run("CREATE TABLE IF NOT EXISTS pads (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-            "name VARCHAR(100) NOT NULL," +
-            "user_id INTEGER NOT NULL REFERENCES users(id));", [],
-            function() { callback(null); })
+      createPads: function (callback) {
+        pool.query(
+          `CREATE TABLE IF NOT EXISTS pads (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id)
+          );`,
+          [],
+          function (err) {
+            if (err) throw err;
+            callback(null);
+          }
+        );
       },
-      createNotes: function(callback) {
-        db.run("CREATE TABLE IF NOT EXISTS notes (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
-            "pad_id INTEGER REFERENCES pads(id)," +
-            "user_id INTEGER NOT NULL REFERENCES users(id)," +
-            "name VARCHAR(100) NOT NULL," +
-            "text text NOT NULL," +
-            "created_at default current_timestamp," +
-            "updated_at default current_timestamp);", [],
-            function() { callback(null); });
-      }
+      createNotes: function (callback) {
+        pool.query(
+          `CREATE TABLE IF NOT EXISTS notes (
+            id SERIAL PRIMARY KEY,
+            pad_id INTEGER REFERENCES pads(id),
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            name VARCHAR(100) NOT NULL,
+            text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );`,
+          [],
+          function (err) {
+            if (err) throw err;
+            callback(null);
+          }
+        );
+      },
     },
-    function(err, results) {
+    function (err, results) {
       next();
     });
   },
 
-  applyFixtures: function(next) {
-    this.truncateTables(function() {
+  applyFixtures: function (next) {
+    this.truncateTables(function () {
       async.series([
-        function(callback) {
-          db.run("INSERT INTO users VALUES (1, 'user1@example.com', " +
-                 "'$2a$10$mhkqpUvPPs.zoRSTiGAEKODOJMljkOY96zludIIw.Pop1UvQCTx8u')", [],
-                function() { callback(null) });
+        function (callback) {
+          pool.query(
+            `INSERT INTO users (email, password) VALUES 
+             ('user1@example.com', '$2a$10$mhkqpUvPPs.zoRSTiGAEKODOJMljkOY96zludIIw.Pop1UvQCTx8u');`,
+            [],
+            function (err) {
+              if (err) throw err;
+              callback(null);
+            }
+          );
         },
-        function(callback) {
-          db.run("INSERT INTO users VALUES (2, 'user2@example.com', " +
-                 "'$2a$10$mhkqpUvPPs.zoRSTiGAEKODOJMljkOY96zludIIw.Pop1UvQCTx8u')", [],
-                function() { callback(null) });
-
+        function (callback) {
+          pool.query(
+            `INSERT INTO users (email, password) VALUES 
+             ('user2@example.com', '$2a$10$mhkqpUvPPs.zoRSTiGAEKODOJMljkOY96zludIIw.Pop1UvQCTx8u');`,
+            [],
+            function (err) {
+              if (err) throw err;
+              callback(null);
+            }
+          );
         },
-        function(callback) {
-          db.run("INSERT INTO pads VALUES (1, 'Pad 1', 1)", [],
-                function() { callback(null) });
+        function (callback) {
+          pool.query(`INSERT INTO pads (name, user_id) VALUES ('Pad 1', 1);`, [], function (err) {
+            if (err) throw err;
+            callback(null);
+          });
         },
-        function(callback) {
-          db.run("INSERT INTO pads VALUES (2, 'Pad 2', 1)", [],
-                function() { callback(null) });
+        function (callback) {
+          pool.query(`INSERT INTO pads (name, user_id) VALUES ('Pad 2', 1);`, [], function (err) {
+            if (err) throw err;
+            callback(null);
+          });
         },
-        function(callback) {
-          db.run("INSERT INTO notes VALUES (1, 1, 1, 'Note 1', 'Text', 1, 1)", [],
-                function() { callback(null) });
+        function (callback) {
+          pool.query(
+            `INSERT INTO notes (pad_id, user_id, name, text) VALUES (1, 1, 'Note 1', 'Text');`,
+            [],
+            function (err) {
+              if (err) throw err;
+              callback(null);
+            }
+          );
         },
-        function(callback) {
-          db.run("INSERT INTO notes VALUES (2, 1, 1, 'Note 2', 'Text', 1, 1)", [],
-                function() { callback(null) });
-        }
-      ], function(err, results) {
+        function (callback) {
+          pool.query(
+            `INSERT INTO notes (pad_id, user_id, name, text) VALUES (1, 1, 'Note 2', 'Text');`,
+            [],
+            function (err) {
+              if (err) throw err;
+              callback(null);
+            }
+          );
+        },
+      ], function (err, results) {
         next();
-      })
+      });
     });
   },
 
-  truncateTables: function(next) {
+  truncateTables: function (next) {
     async.series([
-      function(callback) {
-        db.run("DELETE FROM users;", [],
-              function() { callback(null) });
+      function (callback) {
+        pool.query(`TRUNCATE TABLE users RESTART IDENTITY CASCADE;`, [], function (err) {
+          if (err) throw err;
+          callback(null);
+        });
       },
-      function(callback) {
-        db.run("DELETE FROM notes;", [],
-              function() { callback(null) });
-
+      function (callback) {
+        pool.query(`TRUNCATE TABLE notes RESTART IDENTITY CASCADE;`, [], function (err) {
+          if (err) throw err;
+          callback(null);
+        });
       },
-      function(callback) {
-        db.run("DELETE FROM pads;", [],
-              function(result) { callback(null); });
-      }
-    ], function(err, results) {
+      function (callback) {
+        pool.query(`TRUNCATE TABLE pads RESTART IDENTITY CASCADE;`, [], function (err) {
+          if (err) throw err;
+          callback(null);
+        });
+      },
+    ], function (err, results) {
       next();
-    })
-  }
-}
-
+    });
+  },
+};
 
 if (require.main === module) {
-  functions.createTables(function() {
-    console.log("DB successfully initialized");
+  functions.createTables(function () {
+    console.log('DB successfully initialized');
   });
 }
 

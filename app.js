@@ -36,8 +36,22 @@ app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // DB configuration
-var sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database(settings.db);
+// var sqlite3 = require('sqlite3').verbose();
+// var db = new sqlite3.Database(settings.db);
+const Sequelize = require("sequelize");
+const sequelize = new Sequelize("db", 'postgres', "1234", {
+  host: "localhost",
+  dialect: "postgres",
+  port: 5432,
+  operatorsAliases: false,
+
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+});
 
 orm.settings.set("instance.returnAllErrors", true);
 app.use(orm.express(settings.dsn, {
